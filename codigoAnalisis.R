@@ -327,8 +327,52 @@ metadatos_destino <- "metaDatos.md"
 # Realizar las copias de los archivos
 file.copy(informe_origen, informe_destino, overwrite = TRUE)
 file.copy(codigo_origen, codigo_destino, overwrite = TRUE)
-# Supongamos que ya has generado los metadatos como un archivo "metaDatos.md"
 
+metaDatos_path <- "metaDatos.md"
+file.create(metaDatos_path)
+
+# Obtener rowData y colData de mySE
+row_data <- SummarizedExperiment::rowData(mySE)
+col_data <- SummarizedExperiment::colData(mySE)
+
+# Función para formatear datos como tabla Markdown
+to_markdown_table <- function(data, title) {
+  # Crear el encabezado de la tabla
+  headers <- paste0("| ", paste(colnames(data), collapse = " | "), " |")
+  separator <- paste0("| ", paste(rep("---", ncol(data)), collapse = " | "), " |")
+  
+  # Crear las filas
+  rows <- apply(as.data.frame(data), 1, function(row) {
+    paste0("| ", paste(row, collapse = " | "), " |")
+  })
+  
+  # Combinar título, encabezado y filas
+  c(paste0("## ", title), headers, separator, rows, "")
+}
+
+# Escribir contenido al archivo metaDatos.md
+cat("# Metadatos del análisis\n\n", file = metaDatos_path)
+
+# Añadir rowData
+if (ncol(row_data) > 0) {
+  cat(to_markdown_table(row_data, "Row Data (Información por individuo)"), 
+      sep = "\n", file = metaDatos_path, append = TRUE)
+} else {
+  cat("## Row Data: No disponible\n\n", file = metaDatos_path, append = TRUE)
+}
+
+# Añadir colData
+if (ncol(col_data) > 0) {
+  cat(to_markdown_table(col_data, "Column Data (Información por variable)"), 
+      sep = "\n", file = metaDatos_path, append = TRUE)
+} else {
+  cat("## Column Data: No disponible\n\n", file = metaDatos_path, append = TRUE)
+}
+
+cat("El archivo 'metaDatos.md' ha sido creado con éxito.\n")
+
+
+## ----copiaArchivos---------------------------------------------------------
 # Crear un nuevo directorio para el repositorio
 repo_name <- "ExploreMetaboData"
 repo_path <- file.path(getwd(), repo_name)
@@ -340,4 +384,43 @@ file.copy(codigo_destino, file.path(repo_path, codigo_destino), overwrite = TRUE
 file.copy(objeto_binario, file.path(repo_path, objeto_binario), overwrite = TRUE)
 file.copy(metadatos_destino, file.path(repo_path, metadatos_destino), overwrite = TRUE)
 
+
+
+## ----creaRep, eval=FALSE---------------------------------------------------
+# Inicializar el repositorio Git
+
+if(!require(git2r)) install.packages("git2r", dep=TRUE)
+if(!require(usethis)) install.packages("usethis", dep=TRUE)
+
+library(git2r)
+
+git_repo <- git2r::init(repo_path)
+
+# Crear un archivo README.md para el repositorio
+readme_path <- file.path(repo_path, "README.md")
+writeLines(c("# ExploreMetaboData", "Repositorio de análisis metabolómico"), readme_path)
+
+# Agregar todos los archivos al repositorio
+git2r::add(git_repo, "*")
+
+# Realizar el primer commit
+git2r::commit(git_repo, "Primer commit: Añadir archivos iniciales")
+
+
+## ----repo2github, eval=FALSE-----------------------------------------------
+# Configurar y crear el repositorio en GitHub con usethis
+
+library(usethis)
+usethis::use_git_config(user.name = "ASPteaching", user.email = "asanchez@ub.edu")
+setwd(repo_path)
+
+# Configurar GitHub usando usethis
+usethis::use_git_config(user.name = "ASPteaching",
+                        user.email = "asanchez@ub.edu")
+
+# Crear el repositorio en GitHub y publicarlo
+usethis::use_github(private = FALSE)
+
+# Subir los cambios al repositorio GitHub
+git2r::push(git_repo, credentials = git2r::cred_token())
 
